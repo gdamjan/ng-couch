@@ -10,8 +10,7 @@ angular.module('gdamjan.CouchDB')
       this.method = method || 'GET';
       this.url    = url;
       this.params = params;
-      this.nextparams = $q.defer();
-      this.prevparams = $q.defer();
+      this._loaded = $q.defer();
    }
 
    CouchView.prototype.get = function() {
@@ -37,21 +36,20 @@ angular.module('gdamjan.CouchDB')
             prevparams.endkey = first.key;
             prevparams.endkey_docid = first.id;
          }
-         self.nextparams.resolve(nextparams);
-         self.prevparams.resolve(prevparams);
+         self._loaded.resolve({nextparams:nextparams, prevparams:prevparams});
          return {rows: all.req.data.rows, last_seq: all.req.data.update_seq };
       });
    };
 
    CouchView.prototype.loadAfter = function() {
       var next = new CouchView(this.url, null, this.method);
-      next.params = this.nextparams.promise;
+      next.params = this._loaded.promise.then(function (obj) { return obj.nextparams});
       return next;
    };
 
    CouchView.prototype.loadBefore = function() {
       var prev = new CouchView(this.url, null, this.method);
-      prev.params = this.prevparams.promise;
+      prev.params = this._loaded.promise.then(function (obj) { return obj.prevparams});
       return prev;
    };
 
