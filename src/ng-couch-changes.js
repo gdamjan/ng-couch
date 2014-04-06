@@ -8,7 +8,7 @@
  */
 "use strict";
 
-angular.module('CouchDB')
+angular.module('gdamjan.CouchDB')
 .factory('couchChanges', function($http, $q, $timeout) {
 
    function buildUrl(url, params) {
