@@ -14,7 +14,7 @@ angular.module('CouchDB')
    function buildUrl(url, params) {
      var str = [];
      for(var p in params)
-       if (obj.hasOwnProperty(p)) {
+       if (params.hasOwnProperty(p)) {
          str.push(encodeURIComponent(p) + "=" + encodeURIComponent(params[p]));
        }
      return url + '?' + str.join("&");
@@ -22,22 +22,23 @@ angular.module('CouchDB')
 
    return function (url, params) {
       var result = $q.defer();
+      // return error if no since ?
 
       // a longpoll request can get stuck at the TCP level
       // so kill it each 60 seconds and retry it just in case
       var DEADLINE = 60000;
 
       function longPollFallback (url, params) {
-         // return error if no since ?
-         var _params = { heartbeat: 20000, feed: 'longpoll'};
-         angular.extend(_params, params);
+         var _params = angular.copy(params);
+         _params.feed = 'longpoll';
+         _params.heartbeat = 20000;
 
          function _loop (last_seq) {
             _params.since = last_seq;
             var req = $http({method: 'GET', url: url, params: _params, timeout: DEADLINE});
 
             req.then(function(response) {
-               result.notify(response.data);
+               result.notify(response.data.results);
                _loop(response.data.last_seq);
             });
             req.catch(function(err) {
@@ -55,17 +56,19 @@ angular.module('CouchDB')
       }
 
       if (!!window.EventSource) {
-         var _params = { feed: 'eventsource' };
+         var _params = angular.copy(params);
+         _params.feed = 'eventsource';
+         _params.heartbeat = 20000;
          var _url = buildUrl(url, _params);
          var source = new window.EventSource(_url);
 
          source.addEventListener('error', function(err) {
             if (source.readyState == 2 && err.type == 'error' && err.eventPhase == 2) {
-               // window.EventSource run the longpolled fallback
+               // EventSource not supported on the backend, run the longpolled fallback
                longPollFallback(url, params);
             } else {
                // FIXME: what is it???
-               console.log(src.readyState);
+               console.log(source.readyState);
                console.log(err.eventPhase);
                console.log(err);
                result.reject(err);
@@ -74,7 +77,7 @@ angular.module('CouchDB')
 
          source.addEventListener('message', function(ev) {
             var data = angular.fromJson(ev.data);
-            result.notify(data);
+            result.notify([data]);
          }, false);
       } else {
          // no window.EventSource
